@@ -1,59 +1,59 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Apex Gateway Monitor</title>
+    <title>Apex Gateway Stress Test</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-white p-10">
-    <div class="max-w-2xl mx-auto">
-        <h1 class="text-3xl font-bold mb-2">Apex Gateway Monitor</h1>
-        <p class="text-slate-400 mb-8">Live Transaction Guard (Go + Redis)</p>
-
-        <div class="bg-slate-800 p-6 rounded-lg shadow-xl border border-slate-700">
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Idempotency Key</label>
-                <input id="iKey" type="text" value="txn_123" class="w-full p-2 bg-slate-900 border border-slate-600 rounded">
+<body class="bg-black text-green-500 font-mono p-10">
+    <div class="max-w-4xl mx-auto border border-green-900 p-8 rounded">
+        <h1 class="text-2xl mb-4">SYSTEM_STATUS: OPERATIONAL</h1>
+        <div class="grid grid-cols-2 gap-4 mb-8">
+            <div class="border border-green-900 p-4">
+                <p>ALLOWED (201): <span id="successCount">0</span></p>
+                <p>BLOCKED (429): <span id="blockCount">0</span></p>
             </div>
-            
-            <button onclick="sendTransaction()" class="bg-blue-600 hover:bg-blue-500 w-full py-3 rounded font-bold transition">
-                Execute Transaction
-            </button>
+            <div class="border border-green-900 p-4">
+                <p>CACHED (200): <span id="cacheCount">0</span></p>
+                <p>LATENCY: <span id="avgLatency">0</span>ms</p>
+            </div>
         </div>
 
-        <div id="logs" class="mt-8 space-y-2">
-            </div>
+        <button onclick="runStressTest()" class="bg-green-900 hover:bg-green-700 text-white px-6 py-3 rounded font-bold w-full transition mb-4">
+            INITIATE CONCURRENT STRESS TEST (110 REQUESTS)
+        </button>
+
+        <div id="console" class="bg-slate-900 h-64 overflow-y-auto p-4 text-xs border border-green-900">
+            > Ready for input...
+        </div>
     </div>
 
     <script>
-        async function sendTransaction() {
-            const iKey = document.getElementById('iKey').value;
-            const logDiv = document.getElementById('logs');
-            const startTime = Date.now();
-
-            try {
-                // IMPORTANT: Replace this URL with your actual Render URL
-                const res = await fetch(`https://apex-gateway.onrender.com/v1/transaction?user_id=web_user`, {
+        async function runStressTest() {
+            const consoleBox = document.getElementById('console');
+            const stats = { 201: 0, 200: 0, 429: 0 };
+            
+            consoleBox.innerHTML += `<br>> Starting burst: 110 concurrent requests...`;
+            
+            // Fire 110 requests simultaneously using Promise.all
+            const requests = Array.from({ length: 110 }).map((_, i) => {
+                const iKey = `web-stress-${Date.now()}-${i}`;
+                return fetch('/v1/transaction?user_id=web_tester', {
                     method: 'POST',
                     headers: { 'X-Idempotency-Key': iKey }
+                }).then(res => {
+                    stats[res.status] = (stats[res.status] || 0) + 1;
+                    updateUI(stats);
                 });
+            });
 
-                const status = res.status;
-                const duration = Date.now() - startTime;
-                
-                let color = "text-green-400";
-                if (status === 200) color = "text-blue-400";
-                if (status === 429) color = "text-red-400";
+            await Promise.all(requests);
+            consoleBox.innerHTML += `<br>> Test Complete. Stats: ${JSON.stringify(stats)}`;
+        }
 
-                logDiv.innerHTML = `
-                    <div class="p-3 bg-slate-800 rounded border-l-4 border-blue-500 flex justify-between">
-                        <span>Status: <b class="${color}">${status}</b></span>
-                        <span class="text-slate-500">${duration}ms</span>
-                    </div>
-                ` + logDiv.innerHTML;
-            } catch (e) {
-                alert("Ensure your Render service is awake!");
-            }
+        function updateUI(s) {
+            document.getElementById('successCount').innerText = s[201] || 0;
+            document.getElementById('blockCount').innerText = s[429] || 0;
+            document.getElementById('cacheCount').innerText = s[200] || 0;
         }
     </script>
 </body>

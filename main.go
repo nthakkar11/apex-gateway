@@ -44,6 +44,10 @@ func main() {
 
 	rdb = redis.NewClient(opt)
 
+	// Add this route to your main() function in main.go
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "index.html")
+	})
 	http.HandleFunc("/v1/transaction", handleTransaction)
 
 	port := os.Getenv("PORT")
@@ -57,7 +61,13 @@ func main() {
 func handleTransaction(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "X-Idempotency-Key")
+
+	if r.Method == "OPTIONS" {
+		return // Handle browser pre-flight requests
+	}
+
 	uID := r.URL.Query().Get("user_id")
 	iKey := r.Header.Get("X-Idempotency-Key")
 
