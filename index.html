@@ -29,8 +29,14 @@
 
     <script>
         async function runStressTest() {
+            // Reset counters at the start of every click
+    document.getElementById('successCount').innerText = "0";
+    document.getElementById('blockCount').innerText = "0";
+    document.getElementById('cacheCount').innerText = "0";
+    
+    const stats = { 201: 0, 200: 0, 429: 0 };
             const consoleBox = document.getElementById('console');
-            const stats = { 201: 0, 200: 0, 429: 0 };
+            
             
             consoleBox.innerHTML += `<br>> Starting burst: 110 concurrent requests...`;
             
