@@ -1,0 +1,16 @@
+# Binaries
+*.exe
+*.exe~
+*.test
+__debug_bin
+
+# Environment & Secrets
+.env
+*.env
+
+# Dependencies
+vendor/
+go.sum
+
+# OS files
+.DS_Store
