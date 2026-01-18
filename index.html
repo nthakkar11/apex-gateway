@@ -1,66 +1,125 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Apex Gateway Stress Test</title>
+    <title>Apex Gateway Workbench</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-black text-green-500 font-mono p-10">
-    <div class="max-w-4xl mx-auto border border-green-900 p-8 rounded">
-        <h1 class="text-2xl mb-4">SYSTEM_STATUS: OPERATIONAL</h1>
-        <div class="grid grid-cols-2 gap-4 mb-8">
-            <div class="border border-green-900 p-4">
-                <p>ALLOWED (201): <span id="successCount">0</span></p>
-                <p>BLOCKED (429): <span id="blockCount">0</span></p>
+    <div class="max-w-5xl mx-auto border border-green-900 p-8 rounded shadow-2xl bg-slate-950">
+        <h1 class="text-3xl font-bold mb-2 tracking-tighter text-white">APEX_GATEWAY_V1 // WORKBENCH</h1>
+        <p class="text-green-800 mb-8 border-b border-green-900 pb-2">PROD_ENV: https://apex-gateway.onrender.com</p>
+
+        <div class="grid grid-cols-4 gap-4 mb-8">
+            <div class="border border-green-900 p-4 bg-black">
+                <p class="text-xs text-green-700">ALLOWED (201)</p>
+                <p id="successCount" class="text-2xl font-bold">0</p>
             </div>
-            <div class="border border-green-900 p-4">
-                <p>CACHED (200): <span id="cacheCount">0</span></p>
-                <p>LATENCY: <span id="avgLatency">0</span>ms</p>
+            <div class="border border-green-900 p-4 bg-black">
+                <p class="text-xs text-blue-700">CACHED (200)</p>
+                <p id="cacheCount" class="text-2xl font-bold text-blue-500">0</p>
+            </div>
+            <div class="border border-green-900 p-4 bg-black">
+                <p class="text-xs text-red-700">BLOCKED (429)</p>
+                <p id="blockCount" class="text-2xl font-bold text-red-500">0</p>
+            </div>
+            <div class="border border-green-900 p-4 bg-black">
+                <p class="text-xs text-yellow-700">TOTAL_REQ</p>
+                <p id="totalCount" class="text-2xl font-bold text-yellow-500">0</p>
             </div>
         </div>
 
-        <button onclick="runStressTest()" class="bg-green-900 hover:bg-green-700 text-white px-6 py-3 rounded font-bold w-full transition mb-4">
-            INITIATE CONCURRENT STRESS TEST (110 REQUESTS)
-        </button>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="space-y-4 border-r border-green-900 pr-4">
+                <h2 class="text-white border-b border-green-900 inline-block mb-2">01. MANUAL_INPUT</h2>
+                <div>
+                    <label class="block text-xs mb-1 text-green-700">USER_ID</label>
+                    <input id="userId" type="text" value="tester_01" class="w-full bg-black border border-green-900 p-2 text-white outline-none focus:border-green-400">
+                </div>
+                <div>
+                    <label class="block text-xs mb-1 text-green-700">IDEMPOTENCY_KEY</label>
+                    <input id="manualKey" type="text" placeholder="unique_key_123" class="w-full bg-black border border-green-900 p-2 text-white outline-none focus:border-green-400">
+                </div>
+                <button onclick="runManual()" class="w-full border border-green-400 hover:bg-green-400 hover:text-black py-2 transition uppercase text-xs font-bold">Fire Request</button>
+            </div>
 
-        <div id="console" class="bg-slate-900 h-64 overflow-y-auto p-4 text-xs border border-green-900">
-            > Ready for input...
+            <div class="space-y-4 md:col-span-2">
+                <h2 class="text-white border-b border-green-900 inline-block mb-2">02. AUTOMATED_SUITES</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="runIdempotencyTest()" class="border border-blue-500 hover:bg-blue-500 hover:text-white p-4 transition text-left">
+                        <p class="font-bold text-sm">IDEMPOTENCY_VALIDATION</p>
+                        <p class="text-[10px] text-blue-300">Fires 5 requests with identical keys to verify "Exactly-Once" cache hit logic.</p>
+                    </button>
+                    <button onclick="runStressTest()" class="border border-red-900 hover:bg-red-900 hover:text-white p-4 transition text-left">
+                        <p class="font-bold text-sm">CONCURRENT_STRESS</p>
+                        <p class="text-[10px] text-red-400">Fires 110 requests simultaneously to test the 100-request sliding window limit.</p>
+                    </button>
+                </div>
+
+                <div id="console" class="bg-black h-48 overflow-y-auto p-4 text-[10px] border border-green-900 text-green-600 font-mono">
+                    > SYSTEM_READY...
+                </div>
+                <button onclick="clearConsole()" class="text-[10px] underline text-green-800">CLEAR_CONSOLE</button>
+            </div>
         </div>
     </div>
 
     <script>
-        async function runStressTest() {
-            // Reset counters at the start of every click
-    document.getElementById('successCount').innerText = "0";
-    document.getElementById('blockCount').innerText = "0";
-    document.getElementById('cacheCount').innerText = "0";
-    
-    const stats = { 201: 0, 200: 0, 429: 0 };
+        const stats = { 201: 0, 200: 0, 429: 0, total: 0 };
+
+        function updateUI() {
+            document.getElementById('successCount').innerText = stats[201];
+            document.getElementById('cacheCount').innerText = stats[200];
+            document.getElementById('blockCount').innerText = stats[429];
+            document.getElementById('totalCount').innerText = stats.total;
+        }
+
+        function log(msg) {
             const consoleBox = document.getElementById('console');
-            
-            
-            consoleBox.innerHTML += `<br>> Starting burst: 110 concurrent requests...`;
-            
-            // Fire 110 requests simultaneously using Promise.all
-            const requests = Array.from({ length: 110 }).map((_, i) => {
-                const iKey = `web-stress-${Date.now()}-${i}`;
-                return fetch('/v1/transaction?user_id=web_tester', {
+            consoleBox.innerHTML += `<br>> ${msg}`;
+            consoleBox.scrollTop = consoleBox.scrollHeight;
+        }
+
+        async function apiCall(uid, ikey) {
+            stats.total++;
+            try {
+                const res = await fetch(`/v1/transaction?user_id=${uid}`, {
                     method: 'POST',
-                    headers: { 'X-Idempotency-Key': iKey }
-                }).then(res => {
-                    stats[res.status] = (stats[res.status] || 0) + 1;
-                    updateUI(stats);
+                    headers: { 'X-Idempotency-Key': ikey || `key-${Date.now()}-${Math.random()}` }
                 });
-            });
-
-            await Promise.all(requests);
-            consoleBox.innerHTML += `<br>> Test Complete. Stats: ${JSON.stringify(stats)}`;
+                stats[res.status] = (stats[res.status] || 0) + 1;
+                updateUI();
+                return res.status;
+            } catch (e) {
+                log(`ERROR: Network failure`);
+            }
         }
 
-        function updateUI(s) {
-            document.getElementById('successCount').innerText = s[201] || 0;
-            document.getElementById('blockCount').innerText = s[429] || 0;
-            document.getElementById('cacheCount').innerText = s[200] || 0;
+        async function runManual() {
+            const uid = document.getElementById('userId').value;
+            const ikey = document.getElementById('manualKey').value;
+            const status = await apiCall(uid, ikey);
+            log(`MANUAL_EXEC: User=${uid} | Key=${ikey || 'AUTO'} | Result=${status}`);
         }
+
+        async function runIdempotencyTest() {
+            const uid = document.getElementById('userId').value;
+            const fixedKey = `idem-${Date.now()}`;
+            log(`STARTING_IDEMPOTENCY_TEST: Key=${fixedKey}`);
+            for(let i=0; i<5; i++) {
+                await apiCall(uid, fixedKey);
+            }
+            log(`TEST_COMPLETE: See BLUE counter for cache hits.`);
+        }
+
+        async function runStressTest() {
+            const uid = document.getElementById('userId').value;
+            log(`STARTING_STRESS_TEST: 110 concurrent requests for User=${uid}`);
+            const reqs = Array.from({length: 110}).map(() => apiCall(uid));
+            await Promise.all(reqs);
+            log(`TEST_COMPLETE: See RED counter for rate-limit blocks.`);
+        }
+
+        function clearConsole() { document.getElementById('console').innerHTML = '> CONSOLE_CLEARED...'; }
     </script>
 </body>
 </html>
