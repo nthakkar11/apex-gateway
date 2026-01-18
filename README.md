@@ -50,6 +50,19 @@ Verified via local and remote stress testing:
 
 ---
 
+## 🚥 Live Stress Test Instructions
+
+You can verify the system's resilience by visiting the [Live Dashboard](https://apex-gateway.onrender.com/).
+
+### Verified Test Results
+![Dashboard Stress Test Result](./dashboard-screenshot.png)
+
+1.  Click **"Initiate Stress Test"**.
+2.  The browser will fire **110 concurrent requests**.
+3.  Observe exactly **100 Allowed** and **10 Blocked** responses, proving the atomic rate-limiter threshold.
+
+---
+
 ## Getting Started
 
 ### Local Development
