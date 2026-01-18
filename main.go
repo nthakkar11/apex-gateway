@@ -55,6 +55,9 @@ func main() {
 }
 
 func handleTransaction(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "X-Idempotency-Key")
 	uID := r.URL.Query().Get("user_id")
 	iKey := r.Header.Get("X-Idempotency-Key")
 

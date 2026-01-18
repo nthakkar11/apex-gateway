@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Apex Gateway Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white p-10">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold mb-2">Apex Gateway Monitor</h1>
+        <p class="text-slate-400 mb-8">Live Transaction Guard (Go + Redis)</p>
+
+        <div class="bg-slate-800 p-6 rounded-lg shadow-xl border border-slate-700">
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-1">Idempotency Key</label>
+                <input id="iKey" type="text" value="txn_123" class="w-full p-2 bg-slate-900 border border-slate-600 rounded">
+            </div>
+            
+            <button onclick="sendTransaction()" class="bg-blue-600 hover:bg-blue-500 w-full py-3 rounded font-bold transition">
+                Execute Transaction
+            </button>
+        </div>
+
+        <div id="logs" class="mt-8 space-y-2">
+            </div>
+    </div>
+
+    <script>
+        async function sendTransaction() {
+            const iKey = document.getElementById('iKey').value;
+            const logDiv = document.getElementById('logs');
+            const startTime = Date.now();
+
+            try {
+                // IMPORTANT: Replace this URL with your actual Render URL
+                const res = await fetch(`https://apex-gateway.onrender.com/v1/transaction?user_id=web_user`, {
+                    method: 'POST',
+                    headers: { 'X-Idempotency-Key': iKey }
+                });
+
+                const status = res.status;
+                const duration = Date.now() - startTime;
+                
+                let color = "text-green-400";
+                if (status === 200) color = "text-blue-400";
+                if (status === 429) color = "text-red-400";
+
+                logDiv.innerHTML = `
+                    <div class="p-3 bg-slate-800 rounded border-l-4 border-blue-500 flex justify-between">
+                        <span>Status: <b class="${color}">${status}</b></span>
+                        <span class="text-slate-500">${duration}ms</span>
+                    </div>
+                ` + logDiv.innerHTML;
+            } catch (e) {
+                alert("Ensure your Render service is awake!");
+            }
+        }
+    </script>
+</body>
+</html>
