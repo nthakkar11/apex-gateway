@@ -28,6 +28,12 @@ Apex Gateway centralizes the protection layer using a **Stateless Backend + Cent
 
 ---
 
+## 🏗️ System Architecture
+
+![Apex Gateway Sequence Diagram](./sequence-diagram.png)
+
+---
+
 ## Performance Benchmarks
 Verified via local and remote stress testing:
 - **Throughput:** 10,000+ RPM.
