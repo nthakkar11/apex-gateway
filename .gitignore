@@ -8,9 +8,6 @@ __debug_bin
 .env
 *.env
 
-# Dependencies
-vendor/
-go.sum
 
 # OS files
 .DS_Store
