@@ -30,7 +30,7 @@ Apex Gateway centralizes the protection layer using a **Stateless Backend + Cent
 
 ## 🏗️ System Architecture
 
-![Apex Gateway Sequence Diagram](./sequence-diagram.png)
+![Apex Gateway Sequence Diagram](./apex-gateway.png)
 
 ---
 
