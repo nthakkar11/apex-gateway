@@ -42,24 +42,33 @@ Verified via local and remote stress testing:
 
 ---
 
+## 🚥 Interactive Testing Suite
+
+The [Live Workbench](https://apex-gateway.onrender.com/) allows you to audit the system's logic in real-time:
+
+![Apex Gateway Workbench](./workbench-screenshot.png)
+
+### 1. Idempotency Validation (The "Exactly-Once" Test)
+* **Action**: Click **IDEMPOTENCY_VALIDATION**.
+* **Behavior**: Fires 5 requests with the **same key**.
+* **Result**: 1 success (201) and 4 cache hits (200), proving the system remembers the first transaction.
+
+### 2. Concurrent Stress Test (The "Hammer" Test)
+* **Action**: Click **CONCURRENT_STRESS**.
+* **Behavior**: Fires **110 requests** simultaneously.
+* **Result**: Exactly 100 Allowed (201) and 10 Blocked (429), proving atomic threshold enforcement.
+
+### 3. Manual Multi-User Test
+* **Action**: Input unique **USER_ID**s and custom **IDEMPOTENCY_KEY**s.
+* **Result**: Demonstrates per-user isolation and manual override of the state cache.
+
+---
+
 ## Technical Stack
 - **Runtime:** Go 1.21+
 - **State Store:** Redis (with Lua 5.1 scripting)
 - **Observability:** Structured logging for audit trails
 - **Deployment:** Render (PaaS) with Upstash (Serverless Redis)
-
----
-
-## 🚥 Live Stress Test Instructions
-
-You can verify the system's resilience by visiting the [Live Dashboard](https://apex-gateway.onrender.com/).
-
-### Verified Test Results
-![Dashboard Stress Test Result](./dashboard-screenshot.png)
-
-1.  Click **"Initiate Stress Test"**.
-2.  The browser will fire **110 concurrent requests**.
-3.  Observe exactly **100 Allowed** and **10 Blocked** responses, proving the atomic rate-limiter threshold.
 
 ---
 
