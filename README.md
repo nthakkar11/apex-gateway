@@ -1,56 +1,76 @@
-# Apex Gateway: High-Throughput Financial Infrastructure
+# Apex Gateway
+**High-Throughput Financial Middleware for Distributed System Integrity**
 
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go)](https://golang.org)
-[![Redis](https://img.shields.io/badge/Redis-FF4438?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Go Report Card](https://goreportcard.com/badge/github.com/nthakkar11/apex-gateway)](https://goreportcard.com/report/github.com/nthakkar11/apex-gateway)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-**Apex Gateway** is a distributed API middleware engineered for high-frequency environments where **data integrity** and **system uptime** are critical. It solves the "Double-Spend" and "Retry-Storm" problems by integrating atomic idempotency shields and distributed rate limiting into a single, high-performance layer.
+Apex Gateway is a performance-critical API middleware built in Go, designed to solve the dual challenges of **transactional idempotency** and **distributed rate limiting** in high-frequency environments. By leveraging atomic Lua scripting within Redis, the gateway eliminates race conditions and ensures "exactly-once" processing for sensitive financial operations.
 
-[Live Demo]([YOUR_DEPLOYED_URL]) • [Production Notes](./PRODUCTION.md) • [Report Bug](https://github.com/[YOUR_GITHUB_USERNAME]/apex-gateway/issues)
-
----
-
-## ⚡ The Problem: Why This Exists
-In distributed systems (like Betting or Payment platforms), network partitions are inevitable. 
-1. **The Double-Spend:** A user clicks 'Pay' twice during a lag; without **Idempotency**, they are charged twice.
-2. **The Retry Storm:** Thousands of clients automatically retry failed requests, creating a self-inflicted DDoS. Without **Rate Limiting**, the database crashes.
-
-**Apex Gateway solves both.**
+[Live Instance](https://apex-gateway.onrender.com) | [Technical Architecture](./PRODUCTION.md)
 
 ---
 
-## 🏗️ System Architecture
-![alt text](apex-gateway.png)
+## The Engineering Problem
+In distributed systems, network partitions and client-side retries often lead to two critical failures:
+1. **The Double-Spend:** Multiple concurrent requests resulting in duplicate state changes.
+2. **Resource Exhaustion:** Uncontrolled retry storms that overwhelm downstream services.
 
-
-### How it Works (The "Crazy" Scale)
-Unlike standard middleware that performs multiple database round-trips, Apex Gateway uses **Redis Lua Scripting**. This ensures that the Rate Limit check and the Idempotency lookup happen **atomically** in a single trip, allowing the system to handle **10,000+ Requests Per Minute** with sub-10ms latency.
-
----
-
-## 🚀 Core Features
-
-- **Atomic Gatekeeping:** Uses Lua scripts to eliminate race conditions in high-concurrency environments.
-- **Idempotency Shield:** Implements an "Exactly-Once" processing guarantee for financial transactions.
-- **Distributed State:** Designed to scale horizontally across multiple regions while maintaining a unified state in Redis.
-- **Load-Tested Performance:** Sustained **p99 < 15ms** under heavy load (Tested via Artillery).
+Apex Gateway centralizes the protection layer using a **Stateless Backend + Centralized State** architecture.
 
 ---
 
-## 🛠️ Tech Stack
+## Core Capabilities
 
-- **Backend:** Golang (Standard Library + Gin for Routing)
-- **Data Store:** Redis (Atomic Lua Scripting, TTL Caching)
-- **Testing:** Artillery (Load Testing), Go Subtests (Race Condition Testing)
-- **Ops:** Render/Railway (PaaS), GitHub Actions
+* **Atomic Transaction Guard:** Executes rate-limiting and idempotency checks in a single Redis RTT using Lua scripting to prevent "Time-of-Check to Time-of-Use" (TOCTOU) bugs.
+* **Distributed Rate Limiting:** Implements a sliding window/fixed-window hybrid to protect service availability.
+* **Idempotency Shield:** Caches successful transaction outcomes for a 24-hour TTL, providing consistent responses to redundant requests.
+* **Concurrency-First Design:** Engineered with Go’s `net/http` standard library for minimal overhead and maximum throughput.
 
 ---
 
-## 🚦 Getting Started
+## Performance Benchmarks
+Verified via local and remote stress testing:
+- **Throughput:** 10,000+ RPM.
+- **Latency (p99):** < 20ms (Remote Redis Cluster).
+- **Reliability:** 100% success rate on 110-request concurrent bursts.
 
-### Installation
-1. **Clone & Install**
+---
+
+## Technical Stack
+- **Runtime:** Go 1.21+
+- **State Store:** Redis (with Lua 5.1 scripting)
+- **Observability:** Structured logging for audit trails
+- **Deployment:** Render (PaaS) with Upstash (Serverless Redis)
+
+---
+
+## Getting Started
+
+### Local Development
+1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/](https://github.com/)[YOUR_GITHUB_USERNAME]/apex-gateway.git
+   git clone [https://github.com/nthakkar11/apex-gateway.git](https://github.com/nthakkar11/apex-gateway.git)
    cd apex-gateway
-   go mod tidy
+
+Configure Environment:
+
+Bash
+
+export REDIS_URL="redis://default:password@host:port"
+Run Suite:
+
+Bash
+
+go test -v gateway_test.go
+go run main.go
+
+
+Verification
+Bash
+
+# Initial Request (201 Created)
+curl -i -H "X-Idempotency-Key: txn_01" "http://localhost:8080/v1/transaction?user_id=u1"
+
+# Replay Attack/Retry (200 OK via Cache)
+curl -i -H "X-Idempotency-Key: txn_01" "http://localhost:8080/v1/transaction?user_id=u1"
+
